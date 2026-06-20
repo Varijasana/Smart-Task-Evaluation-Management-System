@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Club Member Dashboard</title>
+  <link rel="stylesheet" href="dashboard.css">
+  <link rel="stylesheet" href="theme.css">
+  <link rel="stylesheet" href="member.css">
+  <link rel="stylesheet" href="calendar.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+</head>
+
+<body>
+  <div class="navbar">
+    <span>CLUB MEMBER - <span id="memberName"></span></span>
+    <div>
+      <a href="#" id="logoutBtn">Logout</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- Action Buttons (Removed as per request, uploads are per-task) -->
+
+
+    <!-- My Media Section -->
+    <!-- My Media Section -->
+    <div id="myMediaSection">
+      <h3>📂 My Uploaded Media</h3>
+      <div id="myMediaList"></div>
+    </div>
+
+    <!-- Statistics Section -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Total Tasks</div>
+        <div class="stat-number" id="totalTasks">0</div>
+      </div>
+      <div class="stat-card completed">
+        <div class="stat-label">Completed</div>
+        <div class="stat-number" id="completedTasks">0</div>
+      </div>
+
+      <div class="stat-card pending">
+        <div class="stat-label">Pending</div>
+        <div class="stat-number" id="pendingTasks">0</div>
+      </div>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="card">
+      <h3>Overall Progress</h3>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+      </div>
+      <p style="text-align: center; margin-top: 10px; font-size: 14px; color: #636e72;">
+        <span id="progressPercent">0</span>% Complete
+      </p>
+    </div>
+
+    <!-- Chart Section -->
+    <div class="chart-container">
+      <h3>Task Completion Trend (Last 7 Days)</h3>
+      <canvas id="completionChart"></canvas>
+    </div>
+
+    <!-- Tasks Section -->
+    <div class="section-title">
+      📋 My Tasks
+    </div>
+    <div id="tasksList"></div>
+  </div>
+
+  <!-- Upload Modal -->
+  <div id="uploadModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Upload Photo/Video</h2>
+        <button class="close-btn" onclick="closeUploadModal()">&times;</button>
+      </div>
+      <form id="uploadForm">
+        <div class="form-group">
+          <label>Link to Task (Optional)</label>
+          <select id="uploadTaskSelect"
+            style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #dfe6e9;">
+            <option value="">Loading tasks...</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Select File *</label>
+          <input type="file" id="mediaFile" accept="image/*,video/*,.pdf,.doc,.docx,.txt,.xls,.xlsx,.ppt,.pptx" required
+            onchange="previewFile()">
+        </div>
+        <div id="filePreview" style="margin-bottom: 15px; text-align: center;"></div>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea id="mediaDescription" placeholder="Add a description for your upload..."></textarea>
+        </div>
+        <button type="submit" class="btn-primary" style="width: 100%;">Upload</button>
+      </form>
+    </div>
+  </div>
+  <script src="utils.js"></script>
+  <script src="member.js"></script>
+  <script src="global-format.js"></script>
+  <script src="calendar.js"></script>
+  <!-- for club-member specifically, also add member-append.js after member.js -->
+  <!-- club-member.html: <script src="member.js"></script> -->
+  <!-- then append: -->
+
+</body>
+
+</html>

@@ -1,0 +1,344 @@
+/* theme.css */
+:root {
+    /* Light Theme (Default) */
+    --bg-color: #fce4ec;
+    --card-bg: #ffffff;
+    --text-color: #2d3436;
+    --text-muted: #636e72;
+    --primary-color: #6c5ce7;
+    --border-color: #dfe6e9;
+    --input-bg: #ffffff;
+    --highlight-bg: #f8f9fa;
+    --button-text: #ffffff;
+    --shadow-color: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="dark"] {
+    /* Dark Theme */
+    --bg-color: #1a1a2e;
+    --card-bg: #16213e;
+    --text-color: #e94560;
+    --text-muted: #a0a0a0;
+    --primary-color: #e94560;
+    /* Adjusted for dark mode contrast */
+    --border-color: #2a2a40;
+    --input-bg: #0f3460;
+    --highlight-bg: #1f4068;
+    --button-text: #ffffff;
+    --shadow-color: rgba(0, 0, 0, 0.5);
+}
+
+body {
+    background: linear-gradient(135deg, var(--bg-color) 0%, #ffeaa7 100%);
+    color: var(--text-color);
+    transition: background 0.3s, color 0.3s;
+}
+
+[data-theme="dark"] body {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+}
+
+.card,
+.task-card,
+.media-card,
+.modal-content,
+.navbar {
+    background: var(--card-bg);
+    color: var(--text-color);
+    transition: background 0.3s, color 0.3s;
+}
+
+input,
+select,
+textarea {
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    border-color: var(--border-color);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    color: var(--text-color);
+}
+
+/* Toggle Button Style */
+.theme-toggle-btn {
+    background: none;
+    border: 2px solid var(--text-color);
+    color: var(--text-color);
+    padding: 5px 10px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: bold;
+    margin-right: 15px;
+    transition: all 0.3s;
+}
+
+.theme-toggle-btn:hover {
+    background: var(--primary-color);
+    color: var(--button-text);
+    color: var(--button-text);
+    border-color: var(--primary-color);
+}
+
+#logoutBtn {
+    color: var(--text-color);
+    /* Black/Dark Gray in Light Mode */
+    font-weight: bold;
+    text-decoration: none;
+    margin-left: 15px;
+    font-size: 1rem;
+}
+
+#logoutBtn:hover {
+    color: var(--primary-color);
+}
+
+/* Toast Notification Styles */
+#toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.toast {
+    background: var(--card-bg);
+    color: var(--text-color);
+    padding: 15px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px var(--shadow-color);
+    border-left: 5px solid var(--primary-color);
+    min-width: 250px;
+    opacity: 0;
+    transform: translateX(50px);
+    animation: slideIn 0.3s forwards;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.toast.success {
+    border-left-color: #00b894;
+}
+
+.toast.error {
+    border-left-color: #d63031;
+}
+
+.toast.info {
+    border-left-color: #0984e3;
+}
+
+.toast.warning {
+    border-left-color: #ffeaa7;
+}
+
+.toast.hide {
+    animation: slideOut 0.3s forwards;
+}
+
+@keyframes slideIn {
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes slideOut {
+    to {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+}
+
+/* Notification Center */
+.notification-bell {
+    position: relative;
+    cursor: pointer;
+    font-size: 1.2rem;
+    margin-right: 15px;
+    background: none;
+    border: none;
+    color: var(--text-color);
+}
+
+.notification-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: #e74c3c;
+    color: white;
+    font-size: 0.7rem;
+    padding: 2px 5px;
+    border-radius: 50%;
+    display: none;
+}
+
+.notification-dropdown {
+    position: absolute;
+    top: 50px;
+    right: 20px;
+    width: 300px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 5px 15px var(--shadow-color);
+    display: none;
+    flex-direction: column;
+    z-index: 1000;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.notification-dropdown.active {
+    display: flex;
+}
+
+.notification-header {
+    padding: 10px 15px;
+    border-bottom: 1px solid var(--border-color);
+    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.notification-item {
+    padding: 10px 15px;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.notification-item:hover {
+    background: var(--highlight-bg);
+}
+
+.notification-item.unread {
+    background: rgba(108, 92, 231, 0.1);
+    /* light purple tint */
+    border-left: 3px solid var(--primary-color);
+}
+
+.notification-empty {
+    padding: 20px;
+    text-align: center;
+    color: var(--text-muted);
+}
+
+/* --- Custom Modal Styles --- */
+.custom-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    opacity: 0;
+    animation: fadeIn 0.3s forwards;
+}
+
+.custom-modal {
+    background: var(--card-bg);
+    color: var(--text-color);
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px var(--shadow-color);
+    width: 90%;
+    max-width: 400px;
+    transform: translateY(20px);
+    animation: slideUp 0.3s forwards;
+    text-align: center;
+}
+
+.custom-modal-title {
+    font-size: 1.25rem;
+    font-weight: bold;
+    margin-bottom: 15px;
+    color: var(--primary-color);
+}
+
+.custom-modal-message {
+    font-size: 1rem;
+    margin-bottom: 25px;
+    color: var(--text-color);
+    line-height: 1.5;
+}
+
+.custom-modal-input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin-bottom: 25px;
+    background: var(--input-bg);
+    color: var(--text-color);
+    font-size: 1rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.custom-modal-input:focus {
+    border-color: var(--primary-color);
+}
+
+.custom-modal-actions {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+}
+
+.modal-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 0.95rem;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.modal-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px var(--shadow-color);
+}
+
+.btn-confirm {
+    background: var(--primary-color);
+    color: white;
+}
+
+.btn-cancel {
+    background: #bdc3c7;
+    color: #2d3436;
+}
+
+.btn-danger {
+    background: #d63031;
+    color: white;
+}
+
+@keyframes fadeIn {
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    to {
+        transform: translateY(0);
+    }
+}

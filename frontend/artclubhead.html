@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Club Head Dashboard</title>
+  <link rel="stylesheet" href="dashboard.css">
+  <link rel="stylesheet" href="head.css">
+  <link rel="stylesheet" href="calendar.css">
+</head>
+
+<body>
+  <div class="navbar">
+    <span>CLUB HEAD - <span id="headName"></span></span>
+    <div>
+      <a href="#" id="logoutBtn">Logout</a>
+    </div>
+  </div>
+
+  <!-- 🔹 ADDED THIS -->
+  <div style="margin: 15px;">
+    <a href="president-clubs.html" style="
+      text-decoration:none;
+      color:#4a4a4a;
+      font-weight:bold;
+      padding:8px 14px;
+      border:1px solid #ddd;
+      border-radius:6px;
+      background:#f3f3f3;
+      display:inline-block;
+      cursor:pointer;">
+      ⬅ Back to Clubs
+    </a>
+  </div>
+  <!-- 🔹 END -->
+
+  <div class="container">
+    <div class="card">
+      <h3>👋 Welcome, Head!</h3>
+      <p>Manage club members and assign tasks to keep your team on track.</p>
+    </div>
+
+    <div class="action-buttons">
+      <button class="btn-primary" onclick="openCreateTaskModal()">➕ Create New Task</button>
+      <button class="btn-secondary" onclick="toggleMediaSection()">📸 Review Media Submissions</button>
+    </div>
+
+    <div id="mediaSection" style="display: none;">
+      <h3>📸 Pending Media Submissions</h3>
+      <div id="pendingMediaList"></div>
+    </div>
+
+    <div class="filter-section">
+      <button class="filter-btn active" onclick="filterTasks('all')">All Tasks</button>
+      <button class="filter-btn" onclick="filterTasks('pending')">Pending</button>
+      <button class="filter-btn" onclick="filterTasks('completed')">Completed</button>
+    </div>
+
+    <h3>📊 Assigned Tasks</h3>
+    <div id="tasksList"></div>
+  </div>
+
+  <div id="createTaskModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Create New Task</h2>
+        <button class="close-btn" onclick="closeCreateTaskModal()">&times;</button>
+      </div>
+      <form id="createTaskForm">
+        <div class="form-group">
+          <label>Task Title *</label>
+          <input type="text" id="taskTitle" required>
+        </div>
+        <div class="form-group">
+          <label>Description *</label>
+          <textarea id="taskDescription" required></textarea>
+        </div>
+        <div class="form-group">
+          <label>Assign To *</label>
+          <select id="taskMember" required>
+            <option value="">Select a member...</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Priority *</label>
+          <select id="taskPriority" required>
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Deadline *</label>
+          <input type="date" id="taskDeadline" required>
+        </div>
+        <button type="submit" class="btn-primary" style="width: 100%;">Create Task</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="head.js"></script>
+  <script src="global-format.js"></script>
+  <script src="calendar.js"></script>
+  <script src="member-append.js"></script>
+</body>
+
+</html>

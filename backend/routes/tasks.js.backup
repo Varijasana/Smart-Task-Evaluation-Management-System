@@ -1,0 +1,813 @@
+const express = require("express");
+const Task = require("../models/Task");
+const Media = require("../models/Media");
+const authMiddleware = require("../middleware/authMiddleware");
+const router = express.Router();
+const User = require("../models/User");
+const multer = require("multer");
+const path = require("path");
+const nodemailer = require("nodemailer");
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/');
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + '-' + file.originalname);
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif|mp4|avi|mov|pdf|doc|docx|txt|xls|xlsx|ppt|pptx/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase().replace('.', ''));
+    // const mimetype = allowedTypes.test(file.mimetype); // Mimetype can be tricky with docs, trust extname + signature if possible, but for now extname is easier for 'all' request.
+
+    if (extname) {
+      return cb(null, true);
+    } else {
+      cb(new Error('File type not supported. Allowed: Images, Videos, PDFs, Docs.'));
+    }
+  }
+});
+
+// ---------------- CREATE TASK ----------------
+router.post("/create", authMiddleware, async (req, res) => {
+  try {
+    const { title, description, assignedTo, priority, deadline } = req.body;
+
+    if (!title || !description || !assignedTo || !priority || !deadline) {
+      return res.status(400).json({ error: "All fields are required" });
+    }
+
+    const task = new Task({
+      title,
+      description,
+      priority,
+      deadline,
+      assignedBy: req.user.id,
+      assignedTo
+    });
+
+    await task.save();
+    res.status(201).json({ message: "Task created successfully", task });
+
+  } catch (err) {
+    console.error("Task Create Error:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ---------------- GET USERS BY ROLE (PRESIDENT) ----------------
+router.get("/users", authMiddleware, async (req, res) => {
+  try {
+    const { role } = req.query;
+    if (!role) return res.status(400).json({ error: "Role required" });
+
+    const users = await User.find({ role }, { name: 1, rollNumber: 1 });
+    res.json({ users });
+  } catch (err) {
+    console.error("Fetch Users Error:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ---------------- GET MEMBERS FOR DROPDOWN (CLUB HEAD) ----------------
+router.get("/members", authMiddleware, async (req, res) => {
+  try {
+    let query = {};
+
+    // If the requester is a Club Head, filter members by their club
+    if (req.user.role.includes("clubhead")) {
+      const club = req.user.role.replace("clubhead", ""); // 'art' or 'dance' mainly, or check req.user.club
+      // Better to use the club field from the user object if populated, but req.user usually just has id/role from token.
+      // Let's fetch the full user to be sure or trust the pattern.
+      // Token payload: { id, role }
+      // We need to fetch the user to get their 'club'.
+      const currentUser = await User.findById(req.user.id);
+      if (currentUser && currentUser.club) {
+        query.club = currentUser.club;
+        query.role = { $regex: 'member' }; // Only show members
+      }
+    } else {
+      // If not a head (e.g. testing?), maybe return all? Or restrict?
+      // User said "for club head ... show all members".
+      // Let's default to all if not head, but head gets their club's members.
+    }
+
+    const members = await User.find(query, { name: 1, rollNumber: 1, role: 1 });
+    res.json({ members });
+  } catch (err) {
+    console.error("Fetch Members Error:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ---------------- GET TASKS ASSIGNED BY ME (CLUB HEAD) ----------------
+router.get("/assigned-by-me", authMiddleware, async (req, res) => {
+  try {
+    const tasks = await Task.find({
+      assignedBy: req.user.id
+    })
+      .populate("assignedTo", "name rollNumber club")
+      .populate("assignedBy", "name")
+      .sort({ createdAt: -1 });
+
+    res.json({ tasks });
+  } catch (err) {
+    console.error("Fetch Tasks Error:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ---------------- GET MY TASKS (CLUB MEMBER) ----------------
+router.get("/my-tasks", authMiddleware, async (req, res) => {
+  try {
+    const tasks = await Task.find({
+      assignedTo: req.user.id
+    })
+      .populate("assignedBy", "name")
+      .sort({ createdAt: -1 });
+
+    res.json(tasks);
+  } catch (err) {
+    console.error("Fetch Tasks Error:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ---------------- GET STATS (CLUB MEMBER) ----------------
+router.get("/stats", authMiddleware, async (req, res) => {
+  try {
+    const tasks = await Task.find({ assignedTo: req.user.id });
+
+    const stats = {
+      total: tasks.length,
+      completed: tasks.filter(t => t.status === 'completed').length,
+      inProgress: tasks.filter(t => t.status === 'in-progress').length,
+      pending: tasks.filter(t => t.status === 'pending').length
+    };
+
+    // Get completion data for last 7 days
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const completionData = await Task.aggregate([
+      {
+        $match: {
+          assignedTo: req.user.id,
+          status: 'completed',
+          updatedAt: { $gte: sevenDaysAgo }
+        }
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$updatedAt" } },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    res.json({ stats, completionData });
+  } catch (err) {
+    console.error("Fetch Stats Error:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ---------------- UPDATE TASK STATUS ----------------
+router.patch("/:taskId/status", authMiddleware, async (req, res) => {
+  try {
+    const { status } = req.body;
+    const { taskId } = req.params;
+
+    const allowed = ["pending", "in-progress", "completed"];
+    if (!allowed.includes(status)) {
+      return res.status(400).json({ error: "Invalid status" });
+    }
+
+    const task = await Task.findById(taskId);
+
+    if (!task) return res.status(404).json({ error: "Task not found" });
+
+    if (task.assignedTo.toString() !== req.user.id) {
+      return res.status(403).json({ error: "Not allowed" });
+    }
+
+    task.status = status;
+    await task.save();
+
+    res.json({ message: "Status updated", task });
+
+  } catch (err) {
+    console.error("Update Status Error:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ---------------- DELETE TASK (CLUB HEAD) ----------------
+router.delete("/:taskId", authMiddleware, async (req, res) => {
+  try {
+    const { taskId } = req.params;
+
+    const task = await Task.findById(taskId);
+
+    if (!task) {
+      return res.status(404).json({ error: "Task not found" });
+    }
+
+    if (task.assignedBy.toString() !== req.user.id) {
+      return res.status(403).json({ error: "Not authorized to delete this task" });
+    }
+
+    await Task.findByIdAndDelete(taskId);
+    res.json({ message: "Task deleted successfully" });
+
+  } catch (err) {
+    console.error("Delete Task Error:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ---------------- UPLOAD MEDIA ----------------
+router.post("/upload-media", authMiddleware, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+
+    const { taskId, description } = req.body;
+
+    const media = new Media({
+      uploadedBy: req.user.id,
+      taskId: taskId || null,
+      fileName: req.file.filename,
+      fileType: req.file.mimetype.startsWith('image') ? 'image' : req.file.mimetype.startsWith('video') ? 'video' : 'document',
+      filePath: req.file.path,
+      description: description || '',
+      status: 'pending'
+    });
+
+    await media.save();
+    res.status(201).json({ message: "Media uploaded successfully", media });
+
+  } catch (err) {
+    console.error("Upload Media Error:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ---------------- GET MY MEDIA (CLUB MEMBER) ----------------
+router.get("/my-media", authMiddleware, async (req, res) => {
+  try {
+    const media = await Media.find({ uploadedBy: req.user.id })
+      .populate('taskId', 'title')
+      .sort({ createdAt: -1 });
+
+    res.json({ media });
+  } catch (err) {
+    console.error("Fetch Media Error:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ---------------- GET ALL MEMBERS PERFORMANCE (PRESIDENT) ----------------
+router.get("/members-performance", authMiddleware, async (req, res) => {
+  try {
+    if (req.user.role !== "studentpresident") {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    const members = await User.find({ role: 'clubmember' });
+
+    const performance = await Promise.all(members.map(async (member) => {
+      const tasks = await Task.find({ assignedTo: member._id });
+      const media = await Media.find({ uploadedBy: member._id });
+
+      return {
+        member: {
+          id: member._id,
+          name: member.name,
+          rollNumber: member.rollNumber
+        },
+        taskStats: {
+          total: tasks.length,
+          completed: tasks.filter(t => t.status === 'completed').length,
+          inProgress: tasks.filter(t => t.status === 'in-progress').length,
+          pending: tasks.filter(t => t.status === 'pending').length
+        },
+        mediaStats: {
+          total: media.length,
+          approved: media.filter(m => m.status === 'approved').length,
+          pending: media.filter(m => m.status === 'pending').length,
+          rejected: media.filter(m => m.status === 'rejected').length
+        }
+      };
+    }));
+
+    res.json({ performance });
+  } catch (err) {
+    console.error("Fetch Performance Error:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ---------------- GET OVERALL STATS (PRESIDENT) ----------------
+router.get("/overall-stats", authMiddleware, async (req, res) => {
+  try {
+    if (req.user.role !== "studentpresident") {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    const totalTasks = await Task.countDocuments();
+    const completedTasks = await Task.countDocuments({ status: 'completed' });
+    const totalMedia = await Media.countDocuments();
+    const approvedMedia = await Media.countDocuments({ status: 'approved' });
+    const totalMembers = await User.countDocuments({ role: 'clubmember' });
+
+    res.json({
+      tasks: {
+        total: totalTasks,
+        completed: completedTasks,
+        completionRate: totalTasks > 0 ? ((completedTasks / totalTasks) * 100).toFixed(1) : 0
+      },
+      media: {
+        total: totalMedia,
+        approved: approvedMedia,
+        approvalRate: totalMedia > 0 ? ((approvedMedia / totalMedia) * 100).toFixed(1) : 0
+      },
+      members: totalMembers
+    });
+  } catch (err) {
+    console.error("Fetch Overall Stats Error:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ---------------- ADDED ENDPOINTS (append) ----------------
+// Reminders endpoint: returns reminders for the logged-in user (near-deadline tasks)
+router.get("/reminders", authMiddleware, async (req, res) => {
+  try {
+    const now = new Date();
+    const twoDays = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+
+    const reminders = await Task.find({
+      assignedTo: req.user.id,
+      status: { $ne: 'completed' },
+      deadline: { $gte: now, $lte: twoDays }
+    }).sort({ deadline: 1 });
+
+    res.json({ reminders });
+  } catch (err) {
+    console.error("Reminders Error:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// Extended upload route that accepts text, pdf, audio, images, video (uses middleware/upload.js)
+// This route appends Task.submission and triggers auto status update via model hooks
+const uploadExtended = require("../middleware/upload"); // multer config that already allows pdf, text, images
+router.post("/upload-media-extended", authMiddleware, uploadExtended.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+
+    const { taskId, description } = req.body;
+
+    const mediaType = req.file.mimetype.startsWith('image') ? 'image' :
+      req.file.mimetype.startsWith('video') ? 'video' : 'document';
+
+    const Media = require("../models/Media");
+    const media = new Media({
+      uploadedBy: req.user.id,
+      taskId: taskId || null,
+      fileName: req.file.filename,
+      fileType: mediaType,
+      filePath: req.file.path,
+      description: description || '',
+      status: 'pending'
+    });
+
+    await media.save();
+
+    // If taskId was provided, update Task.submission here too (redundant with hooks but safe)
+    if (taskId) {
+      const Task = require("../models/Task");
+      const task = await Task.findById(taskId);
+      if (task) {
+        task.submission = task.submission || {};
+        task.submission.submitted = true;
+        task.submission.submittedAt = new Date();
+        task.submission.mediaIds = task.submission.mediaIds || [];
+        task.submission.mediaIds.push(media._id);
+        task.submission.submittedBy = req.user.id;
+        task.status = 'completed'; // auto-update status when document submitted
+        await task.save();
+      }
+    }
+
+    res.status(201).json({ message: "Media uploaded (extended) successfully", media });
+  } catch (err) {
+    console.error("Extended Upload Error:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ---------------- GET PENDING MEDIA (REVIEW) ----------------
+router.get("/pending-media", authMiddleware, async (req, res) => {
+  try {
+    const Media = require("../models/Media");
+    const Task = require("../models/Task");
+    const User = require("../models/User");
+
+    // Fetch all pending media with populated task info
+    let pendingMedia = await Media.find({ status: 'pending' })
+      .populate('uploadedBy', 'name rollNumber club')
+      .populate({
+        path: 'taskId',
+        populate: {
+          path: 'assignedBy',
+          select: '_id'
+        }
+      })
+      .sort({ createdAt: 1 });
+
+    // Filter based on who can approve/reject
+    // Rule: Only the person who assigned the task can approve/reject the submission
+    let filteredMedia = pendingMedia.filter(media => {
+      // If media has no linked task, skip it (shouldn't happen in normal flow)
+      if (!media.taskId) return false;
+
+      // If task has no assignedBy, skip it
+      if (!media.taskId.assignedBy) return false;
+
+      // Check if current user is the one who assigned this task
+      return media.taskId.assignedBy._id.toString() === req.user.id;
+    });
+
+    // For President requesting specific club, additionally filter by club
+    if (req.user.role === 'studentpresident') {
+      const club = req.query.club;
+      if (club) {
+        filteredMedia = filteredMedia.filter(media => {
+          return media.uploadedBy && media.uploadedBy.club === club;
+        });
+      }
+    }
+
+    res.json({ media: filteredMedia });
+  } catch (err) {
+    console.error("Fetch Pending Media Error:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ---------------- VERIFY MEDIA (APPROVE/REJECT) ----------------
+router.patch("/media/:mediaId/verify", authMiddleware, async (req, res) => {
+  try {
+    const { status, feedback } = req.body;
+    const { mediaId } = req.params;
+
+    if (!['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ error: "Invalid status" });
+    }
+
+    const Media = require("../models/Media");
+    const media = await Media.findById(mediaId).populate('taskId');
+    if (!media) return res.status(404).json({ error: "Media not found" });
+
+    media.status = status;
+    media.verifiedBy = req.user.id;
+    media.verificationDate = new Date();
+    media.feedback = feedback || '';
+
+    await media.save();
+
+    // If approved and linked to a task, maybe mark task as completed?
+    // User logic: "after approval only the task is deleted" (hidden).
+    // The task itself might already be 'completed' if upload happened via extended route.
+    // But if we want to ensure it, we can.
+    // For now, the task status 'completed' is enough.
+    // If rejected, maybe reopen the task?
+    if (status === 'rejected' && media.taskId) {
+      const Task = require("../models/Task");
+      // If rejected, maybe set task back to 'in-progress' or 'pending'?
+      // The user didn't explicitly ask for this, but it makes sense.
+      // However, let's just leave task status alone unless they resubmit.
+    }
+
+    res.json({ message: `Media ${status}`, media });
+  } catch (err) {
+    console.error("Verify Media Error:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ---------------- DELETE MEDIA (OWN SUBMISSION) ----------------
+router.delete("/media/:mediaId", authMiddleware, async (req, res) => {
+  try {
+    const { mediaId } = req.params;
+    const Media = require("../models/Media");
+
+    const media = await Media.findById(mediaId);
+    if (!media) {
+      return res.status(404).json({ error: "Media not found" });
+    }
+
+    // Only allow deletion if:
+    // 1. User is the uploader
+    // 2. Status is still 'pending' (not yet approved/rejected)
+    if (media.uploadedBy.toString() !== req.user.id) {
+      return res.status(403).json({ error: "Not authorized to delete this media" });
+    }
+
+    if (media.status !== 'pending') {
+      return res.status(400).json({ error: "Cannot delete media that has already been reviewed" });
+    }
+
+    // Delete the file from filesystem
+    const fs = require('fs');
+    const path = require('path');
+    if (fs.existsSync(media.filePath)) {
+      fs.unlinkSync(media.filePath);
+      ```javascript
+        approvalRate: totalMedia > 0 ? ((approvedMedia / totalMedia) * 100).toFixed(1) : 0
+      },
+      members: totalMembers
+    });
+  } catch (err) {
+    console.error("Fetch Overall Stats Error:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ---------------- ADDED ENDPOINTS (append) ----------------
+// Reminders endpoint: returns reminders for the logged-in user (near-deadline tasks)
+router.get("/reminders", authMiddleware, async (req, res) => {
+  try {
+    const now = new Date();
+    const twoDays = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+
+    const reminders = await Task.find({
+      assignedTo: req.user.id,
+      status: { $ne: 'completed' },
+      deadline: { $gte: now, $lte: twoDays }
+    }).sort({ deadline: 1 });
+
+    res.json({ reminders });
+  } catch (err) {
+    console.error("Reminders Error:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// Extended upload route that accepts text, pdf, audio, images, video (uses middleware/upload.js)
+// This route appends Task.submission and triggers auto status update via model hooks
+const uploadExtended = require("../middleware/upload"); // multer config that already allows pdf, text, images
+router.post("/upload-media-extended", authMiddleware, uploadExtended.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+
+    const { taskId, description } = req.body;
+
+    const mediaType = req.file.mimetype.startsWith('image') ? 'image' :
+      req.file.mimetype.startsWith('video') ? 'video' : 'document';
+
+    const Media = require("../models/Media");
+    const media = new Media({
+      uploadedBy: req.user.id,
+      taskId: taskId || null,
+      fileName: req.file.filename,
+      fileType: mediaType,
+      filePath: req.file.path,
+      description: description || '',
+      status: 'pending'
+    });
+
+    await media.save();
+
+    // If taskId was provided, update Task.submission here too (redundant with hooks but safe)
+    if (taskId) {
+      const Task = require("../models/Task");
+      const task = await Task.findById(taskId);
+      if (task) {
+        task.submission = task.submission || {};
+        task.submission.submitted = true;
+        task.submission.submittedAt = new Date();
+        task.submission.mediaIds = task.submission.mediaIds || [];
+        task.submission.mediaIds.push(media._id);
+        task.submission.submittedBy = req.user.id;
+        task.status = 'completed'; // auto-update status when document submitted
+        await task.save();
+      }
+    }
+
+    res.status(201).json({ message: "Media uploaded (extended) successfully", media });
+  } catch (err) {
+    console.error("Extended Upload Error:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ---------------- GET PENDING MEDIA (REVIEW) ----------------
+router.get("/pending-media", authMiddleware, async (req, res) => {
+  try {
+    const Media = require("../models/Media");
+    const Task = require("../models/Task");
+    const User = require("../models/User");
+
+    // Fetch all pending media with populated task info
+    let pendingMedia = await Media.find({ status: 'pending' })
+      .populate('uploadedBy', 'name rollNumber club')
+      .populate({
+        path: 'taskId',
+        populate: {
+          path: 'assignedBy',
+          select: '_id'
+        }
+      })
+      .sort({ createdAt: 1 });
+
+    // Filter based on who can approve/reject
+    // Rule: Only the person who assigned the task can approve/reject the submission
+    let filteredMedia = pendingMedia.filter(media => {
+      // If media has no linked task, skip it (shouldn't happen in normal flow)
+      if (!media.taskId) return false;
+
+      // If task has no assignedBy, skip it
+      if (!media.taskId.assignedBy) return false;
+
+      // Check if current user is the one who assigned this task
+      return media.taskId.assignedBy._id.toString() === req.user.id;
+    });
+
+    // For President requesting specific club, additionally filter by club
+    if (req.user.role === 'studentpresident') {
+      const club = req.query.club;
+      if (club) {
+        filteredMedia = filteredMedia.filter(media => {
+          return media.uploadedBy && media.uploadedBy.club === club;
+        });
+      }
+    }
+
+    res.json({ media: filteredMedia });
+  } catch (err) {
+    console.error("Fetch Pending Media Error:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ---------------- VERIFY MEDIA (APPROVE/REJECT) ----------------
+router.patch("/media/:mediaId/verify", authMiddleware, async (req, res) => {
+  try {
+    const { status, feedback } = req.body;
+    const { mediaId } = req.params;
+
+    if (!['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ error: "Invalid status" });
+    }
+
+    const Media = require("../models/Media");
+    const media = await Media.findById(mediaId).populate('taskId');
+    if (!media) return res.status(404).json({ error: "Media not found" });
+
+    media.status = status;
+    media.verifiedBy = req.user.id;
+    media.verificationDate = new Date();
+    media.feedback = feedback || '';
+
+    await media.save();
+
+    // If approved and linked to a task, maybe mark task as completed?
+    // User logic: "after approval only the task is deleted" (hidden).
+    // The task itself might already be 'completed' if upload happened via extended route.
+    // But if we want to ensure it, we can.
+    // For now, the task status 'completed' is enough.
+    // If rejected, maybe reopen the task?
+    if (status === 'rejected' && media.taskId) {
+      const Task = require("../models/Task");
+      // If rejected, maybe set task back to 'in-progress' or 'pending'?
+      // The user didn't explicitly ask for this, but it makes sense.
+      // However, let's just leave task status alone unless they resubmit.
+    }
+
+    res.json({ message: `Media ${ status } `, media });
+  } catch (err) {
+    console.error("Verify Media Error:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ---------------- DELETE MEDIA (OWN SUBMISSION) ----------------
+router.delete("/media/:mediaId", authMiddleware, async (req, res) => {
+  try {
+    const { mediaId } = req.params;
+    const Media = require("../models/Media");
+
+    const media = await Media.findById(mediaId);
+    if (!media) {
+      return res.status(404).json({ error: "Media not found" });
+    }
+
+    // Only allow deletion if:
+    // 1. User is the uploader
+    // 2. Status is still 'pending' (not yet approved/rejected)
+    if (media.uploadedBy.toString() !== req.user.id) {
+      return res.status(403).json({ error: "Not authorized to delete this media" });
+    }
+
+    if (media.status !== 'pending') {
+      return res.status(400).json({ error: "Cannot delete media that has already been reviewed" });
+    }
+
+    // Delete the file from filesystem
+    const fs = require('fs');
+    const path = require('path');
+    if (fs.existsSync(media.filePath)) {
+      fs.unlinkSync(media.filePath);
+    }
+
+    await Media.findByIdAndDelete(mediaId);
+    res.json({ message: "Media deleted successfully" });
+  } catch (err) {
+    console.error("Delete Media Error:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ---------------- UPDATE MEDIA (DESCRIPTION AND/OR FILE) ----------------
+router.patch("/media/:mediaId/update", authMiddleware, uploadExtended.single('file'), async (req, res) => {
+  try {
+    const { mediaId } = req.params;
+    const { description } = req.body;
+    const Media = require("../models/Media");
+    const fs = require('fs');
+    
+    const media = await Media.findById(mediaId);
+    if (!media) {
+      return res.status(404).json({ error: "Media not found" });
+    }
+
+    if (media.uploadedBy.toString() !== req.user.id) {
+      return res.status(403).json({ error: "Not authorized to update this media" });
+    }
+
+    if (media.status !== 'pending') {
+      return res.status(400).json({ error: "Cannot update media that has already been reviewed" });
+    }
+
+    // Update description if provided
+    if (description !== undefined) {
+      media.description = description;
+    }
+
+    // Replace file if new one is uploaded
+    if (req.file) {
+      // Delete old file from filesystem
+      if (fs.existsSync(media.filePath)) {
+        fs.unlinkSync(media.filePath);
+      }
+
+      // Update with new file info
+      media.fileName = req.file.filename;
+      media.fileType = req.file.mimetype.startsWith('image') ? 'image' : 
+                       req.file.mimetype.startsWith('video') ? 'video' : 'document';
+      media.filePath = req.file.path;
+    }
+
+    await media.save();
+    res.json({ message: "Media updated successfully", media });
+  } catch (err) {
+    console.error("Update Media Error:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// quick endpoint to fetch all events ...
+router.get("/events", authMiddleware, async (req, res) => {
+  try {
+    // For admin: show all tasks; for members: only assignedTo
+    let match = {};
+    if (req.user.role === 'clubmember') {
+      match.assignedTo = req.user.id;
+    }
+    const tasks = await Task.find(match).select('title deadline status recurrence').lean();
+    // include media submission dates for the user
+    const Media = require("../models/Media");
+    const mediaMatch = req.user.role === 'clubmember' ? { uploadedBy: req.user.id } : {};
+    const medias = await Media.find(mediaMatch).select('fileName createdAt taskId status').lean();
+
+    res.json({ tasks, medias });
+  } catch (err) {
+    console.error("Events Error:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+
+module.exports = router;
+```

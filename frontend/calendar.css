@@ -1,0 +1,165 @@
+/* calendar.css - bottom-right calendar widget */
+#miniCalendar {
+  position: fixed;
+  right: 20px;
+  bottom: 80px;
+  /* Shifted up to avoid overlap */
+  width: 300px;
+  background: #cd82ff7a;
+  border-radius: 10px;
+  box-shadow: 0 8px 30px rgba(77, 253, 206, 0.623);
+  z-index: 2000;
+  font-family: 'Courier New', Courier, monospace;
+  overflow: hidden;
+}
+
+#miniCalendar .cal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, #42186d 0%, #a7e7fa 100%);
+  color: #edf50f;
+}
+
+#miniCalendar .cal-body {
+  padding: 12px;
+}
+
+#miniCalendar table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: center;
+}
+
+#miniCalendar th,
+#miniCalendar td {
+  padding: 6px;
+  font-size: 12px;
+}
+
+#miniCalendar td.day {
+  cursor: default;
+  border-radius: 6px;
+}
+
+#miniCalendar td.day.event {
+  background: linear-gradient(135deg, #d009e6 0%, #480109 100%);
+  color: white;
+  font-weight: 700;
+}
+
+#miniCalendar .legend {
+  margin-top: 8px;
+  font-size: 18px;
+  color: #262b8fa8;
+}
+
+#miniCalendar .legend span {
+  display: inline-block;
+  margin-right: 8px;
+}
+
+/* Task Details Modal (Custom UI) */
+.cal-details-modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 3000;
+  justify-content: center;
+  align-items: center;
+}
+
+.cal-details-content {
+  background: white;
+  width: 90%;
+  max-width: 400px;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  animation: popIn 0.3s ease;
+}
+
+@keyframes popIn {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.cal-details-header {
+  background: linear-gradient(135deg, #8f1d1d 0%, #fe9b9b 100%);
+  padding: 15px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: white;
+}
+
+.cal-details-header h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.cal-details-close {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.cal-details-body {
+  padding: 20px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.cal-task-item {
+  background: #f8f9fa;
+  border-left: 4px solid #dfe6e9;
+  padding: 12px;
+  margin-bottom: 12px;
+  border-radius: 4px;
+}
+
+.cal-task-item.priority-high {
+  border-left-color: #ff6b6b;
+}
+
+.cal-task-item.priority-medium {
+  border-left-color: #ffa502;
+}
+
+.cal-task-item.priority-low {
+  border-left-color: #00b894;
+}
+
+.cal-task-title {
+  font-weight: bold;
+  color: #000000;
+  margin-bottom: 4px;
+}
+
+.cal-task-desc {
+  font-size: 0.9em;
+  color: #636572;
+  margin-bottom: 8px;
+}
+
+.cal-task-meta {
+  font-size: 0.8em;
+  color: #7e8398;
+  display: flex;
+  justify-content: space-between;
+}

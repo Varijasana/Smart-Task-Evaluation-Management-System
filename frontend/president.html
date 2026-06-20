@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>President Dashboard</title>
+  <link rel="stylesheet" href="president.css">
+</head>
+
+<body>
+  <div class="navbar">
+    <span>STUDENT PRESIDENT - <span id="presidentName"></span></span>
+    <div>
+      <a href="#" id="logoutBtn">Logout</a>
+    </div>
+  </div>
+
+  <div class="container center-content">
+    <div class="welcome-section">
+      <h2>Welcome, President</h2>
+      <p>Select a club to manage</p>
+    </div>
+
+    <div class="club-cards-container">
+      <div class="club-card" onclick="location.href='president-club-dashboard.html?club=art'">
+        <h3>🎨 Art Club</h3>
+        <p>Manage Art Club Head & Members</p>
+      </div>
+      <div class="club-card" onclick="location.href='president-club-dashboard.html?club=dance'">
+        <h3>💃 Dance Club</h3>
+        <p>Manage Dance Club Head & Members</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="president.js"></script>
+
+</html>

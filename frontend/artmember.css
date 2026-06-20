@@ -1,0 +1,5 @@
+body { font-family: Arial; background:#f8f9fa; margin:0; padding:0;}
+.navbar { background:#667eea; color:white; padding:10px 20px; display:flex; justify-content:space-between; align-items:center;}
+.navbar button { margin-left:10px; padding:5px 12px; cursor:pointer; border:none; border-radius:6px; font-weight:bold; background:#764ba2; color:white;}
+.container { padding:20px;}
+.task-card { background:white; padding:15px; border-radius:8px; margin-bottom:15px; box-shadow:0 2px 8px rgba(0,0,0,0.1);}

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Manager - President</title>
+    <link rel="stylesheet" href="dashboard.css">
+    <link rel="stylesheet" href="theme.css">
+    <link rel="stylesheet" href="head.css">
+    <style>
+        .form-container {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #2d3436;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #dfe6e9;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            border-color: #667eea;
+            outline: none;
+        }
+
+        .back-btn {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #636e72;
+            text-decoration: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="navbar">
+        <span>STUDENT PRESIDENT - <span id="presidentName"></span></span>
+        <div>
+            <a href="#" id="logoutBtn">Logout</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <a href="#" onclick="goBack()" class="back-btn">← Back to Dashboard</a>
+
+        <div class="form-container">
+            <h2 id="pageTitle">Assign Task</h2>
+            <p id="pageSubtitle" style="margin-bottom: 30px; color: #636e72;">Assign a new task to...</p>
+
+            <form id="createTaskForm">
+                <div class="form-group">
+                    <label>Task Title *</label>
+                    <input type="text" id="taskTitle" required placeholder="e.g., Organize Workshop">
+                </div>
+
+                <div class="form-group">
+                    <label>Type *</label>
+                    <select id="taskType" required>
+                        <option value="task" selected>Task</option>
+                        <option value="meeting">Meeting</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Description *</label>
+                    <textarea id="taskDescription" required rows="4" placeholder="Details about the task..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Assign To (<span id="targetRoleLabel">User</span>) *</label>
+                    <select id="taskMember" required>
+                        <option value="">Loading users...</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Priority *</label>
+                    <select id="taskPriority" required>
+                        <option value="low">Low</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="high">High</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Deadline *</label>
+                    <input type="datetime-local" id="taskDeadline" required>
+                </div>
+
+                <button type="submit" class="btn-primary" style="width: 100%;">Assign Task</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="utils.js"></script>
+    <script src="president-task-manager.js"></script>
+</body>
+
+</html>

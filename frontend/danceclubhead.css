@@ -1,0 +1,7 @@
+body { font-family: Arial; background: #f8f9fa; margin:0; padding:0;}
+.navbar { background: #667eea; color: white; display:flex; justify-content:space-between; padding:10px 20px; align-items:center;}
+.navbar button { margin-left:10px; padding:5px 12px; cursor:pointer; border:none; border-radius:6px; font-weight:bold; background:#764ba2; color:white;}
+.container { padding:20px;}
+#clubHeadInfo, #memberList { display:flex; gap:15px; flex-wrap:wrap; }
+.member-card, .head-card { background:white; padding:15px; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.1);}
+.member-card { width:120px; text-align:center; }
